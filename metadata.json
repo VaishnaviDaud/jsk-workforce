@@ -1,0 +1,5 @@
+{
+  "name": "JSK Workforce Manager",
+  "description": "A comprehensive workforce management tool for tracking workers, attendance, advances, and salary calculations with SMS notifications.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,70 @@
+{
+  "entities": {
+    "Worker": {
+      "title": "Worker",
+      "description": "A worker managed by the workforce manager.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "The name of the worker." },
+        "phone": { "type": "string", "description": "The phone number of the worker." },
+        "dailyWage": { "type": "number", "description": "The daily wage of the worker in ₹." },
+        "uid": { "type": "string", "description": "The UID of the user who owns this worker record." }
+      },
+      "required": ["name", "phone", "dailyWage", "uid"]
+    },
+    "Attendance": {
+      "title": "Attendance",
+      "description": "An attendance record for a worker on a specific date.",
+      "type": "object",
+      "properties": {
+        "workerId": { "type": "string", "description": "The ID of the worker." },
+        "date": { "type": "string", "format": "date", "description": "The date of attendance (YYYY-MM-DD)." },
+        "status": { "type": "string", "enum": ["present", "absent"], "description": "The attendance status." },
+        "uid": { "type": "string", "description": "The UID of the user who owns this record." }
+      },
+      "required": ["workerId", "date", "status", "uid"]
+    },
+    "Advance": {
+      "title": "Advance",
+      "description": "An advance payment record for a worker.",
+      "type": "object",
+      "properties": {
+        "workerId": { "type": "string", "description": "The ID of the worker." },
+        "date": { "type": "string", "format": "date", "description": "The date the advance was given (YYYY-MM-DD)." },
+        "amount": { "type": "number", "description": "The amount of advance given in ₹." },
+        "uid": { "type": "string", "description": "The UID of the user who owns this record." }
+      },
+      "required": ["workerId", "date", "amount", "uid"]
+    },
+    "User": {
+      "title": "User",
+      "description": "A user of the workforce manager app.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "The name of the user." },
+        "email": { "type": "string", "format": "email", "description": "The email of the user." },
+        "role": { "type": "string", "enum": ["admin", "user"], "description": "The role of the user." },
+        "uid": { "type": "string", "description": "The UID of the user." }
+      },
+      "required": ["name", "email", "role", "uid"]
+    }
+  },
+  "firestore": {
+    "/workers/{workerId}": {
+      "schema": "Worker",
+      "description": "Collection of workers."
+    },
+    "/attendance/{attendanceId}": {
+      "schema": "Attendance",
+      "description": "Collection of attendance records."
+    },
+    "/advances/{advanceId}": {
+      "schema": "Advance",
+      "description": "Collection of advance payment records."
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Collection of user profiles."
+    }
+  }
+}

@@ -1,0 +1,158 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - name: string (required)
+    //   - email: string (required, format: email)
+    //   - role: string (required, enum: ['admin', 'user'])
+    //   - uid: string (required, matches userId)
+    //
+    // Collection: workers
+    // Document ID: {workerId}
+    // Fields:
+    //   - name: string (required, min: 1, max: 100)
+    //   - phone: string (required, min: 10, max: 15)
+    //   - dailyWage: number (required, positive)
+    //   - uid: string (required, owner's UID)
+    //
+    // Collection: attendance
+    // Document ID: {attendanceId}
+    // Fields:
+    //   - workerId: string (required)
+    //   - date: string (required, format: YYYY-MM-DD)
+    //   - status: string (required, enum: ['present', 'absent'])
+    //   - uid: string (required, owner's UID)
+    //
+    // Collection: advances
+    // Document ID: {advanceId}
+    // Fields:
+    //   - workerId: string (required)
+    //   - date: string (required, format: YYYY-MM-DD)
+    //   - amount: number (required, positive)
+    //   - uid: string (required, owner's UID)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.uid;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "vaishnavidaud8@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasRequiredFields(['name', 'email', 'role', 'uid']) &&
+             hasOnlyAllowedFields(['name', 'email', 'role', 'uid']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             isValidEmail(data.email) &&
+             data.role in ['admin', 'user'] &&
+             data.uid == request.auth.uid;
+    }
+
+    function isValidWorker(data) {
+      return hasRequiredFields(['name', 'phone', 'dailyWage', 'uid']) &&
+             hasOnlyAllowedFields(['name', 'phone', 'dailyWage', 'uid']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.phone is string && data.phone.size() >= 10 && data.phone.size() <= 15 &&
+             data.dailyWage is number && data.dailyWage > 0 &&
+             data.uid == request.auth.uid;
+    }
+
+    function isValidAttendance(data) {
+      return hasRequiredFields(['workerId', 'date', 'status', 'uid']) &&
+             hasOnlyAllowedFields(['workerId', 'date', 'status', 'uid']) &&
+             data.workerId is string &&
+             isValidDateString(data.date) &&
+             data.status in ['present', 'absent'] &&
+             data.uid == request.auth.uid;
+    }
+
+    function isValidAdvance(data) {
+      return hasRequiredFields(['workerId', 'date', 'amount', 'uid']) &&
+             hasOnlyAllowedFields(['workerId', 'date', 'amount', 'uid']) &&
+             data.workerId is string &&
+             isValidDateString(data.date) &&
+             data.amount is number && data.amount > 0 &&
+             data.uid == request.auth.uid;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == 'user' || isAdmin());
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /workers/{workerId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidWorker(request.resource.data);
+      allow update: if isDocOwner() && isValidWorker(request.resource.data) || isAdmin();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /attendance/{attendanceId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidAttendance(request.resource.data);
+      allow update: if isDocOwner() && isValidAttendance(request.resource.data) || isAdmin();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /advances/{advanceId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidAdvance(request.resource.data);
+      allow update: if isDocOwner() && isValidAdvance(request.resource.data) || isAdmin();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
